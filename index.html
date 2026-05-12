@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>课表与作业管理 | 课程任务助手</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2b4f8c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="课程任务桌">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none; /* 避免拖动，不影响输入 */
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Noto Sans', system-ui, -apple-system, sans-serif;
+            background: #000000;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            margin: 0;
+            padding: 20px;
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.3); /* 降低透明度以展现清晰背景 */
+            backdrop-filter: none; /* 确保完全不模糊 */
+            -webkit-backdrop-filter: none;
+            border-radius: 32px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+            overflow-x: auto;
+            padding: 20px 20px 30px 20px;
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            color: #ffffff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            display: inline-block;
+        }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: 28px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 15px;
+        }
+
+        .title-section h2 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #ffffff;
+            text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+            margin: 5px 0 0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .bg-input-label {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 18px;
+            border-radius: 60px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .bg-input-label:hover {
+            background: rgba(255, 255, 255, 0.35);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        #bgInput {
+            display: none;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 18px;
+            border-radius: 60px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #ffffff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        button i {
+            margin-right: 6px;
+            font-style: normal;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: rgba(43, 79, 140, 0.9);
+            border-color: rgba(43, 79, 140, 0.7);
+            color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-primary:hover {
+            background: rgba(30, 58, 107, 1);
+            transform: translateY(-1px);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-outline {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .timetable-wrapper {
+            overflow-x: auto;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: transparent;
+            margin-top: 10px;
+        }
+
+        .timetable {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 700px;
+            font-size: 0.85rem;
+            background: transparent;
+        }
+
+        .timetable th, .timetable td {
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 14px 10px;
+            vertical-align: top;
+            transition: background 0.1s ease;
+        }
+
+        .timetable th {
+            background: rgba(255, 255, 255, 0.1);
+            font-weight: 700;
+            font-size: 1rem;
+            color: #ffffff;
+            text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+            text-align: center;
+            padding: 14px 8px;
+        }
+
+        .period-col {
+            background: rgba(255, 255, 255, 0.08);
+            font-weight: 600;
+            text-align: center;
+            width: 70px;
+            color: #ffffff;
+            text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+        }
+
+        .course-cell {
+            min-height: 100px;
+            background: transparent;
+            transition: all 0.1s;
+        }
+
+        .course-cell:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .course-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #ffffff;
+            text-shadow: 0 2px 8px rgba(0,0,0,1);
+            word-break: break-word;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .course-location {
+            font-size: 0.7rem;
+            color: #ffffff;
+            text-shadow: 0 1px 6px rgba(0,0,0,1);
+            display: block;
+            margin-top: 4px;
+            letter-spacing: 0.3px;
+        }
+
+        .empty-course {
+            color: rgba(255, 255, 255, 0.7);
+            font-style: italic;
+            font-size: 0.75rem;
+            text-align: center;
+            padding: 8px 0;
+            cursor: pointer;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+        }
+
+        .job-badge {
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .job-btn {
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 40px;
+            padding: 5px 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+        }
+
+        .job-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0.98);
+        }
+
+        .job-count {
+            background: rgba(255, 255, 255, 0.4);
+            color: white;
+            border-radius: 30px;
+            padding: 2px 8px;
+            font-size: 0.65rem;
+            font-weight: bold;
+        }
+
+        .footer-note {
+            margin-top: 24px;
+            font-size: 0.7rem;
+            text-align: center;
+            color: #ffffff;
+            text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 18px;
+        }
+
+        /* 模态框样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-container {
+            background: #1a1a1a;
+            color: white;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 32px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            animation: fadeInUp 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 18px 24px;
+            background: #262626;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.8rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #7e95b0;
+            padding: 0;
+        }
+
+        .modal-body {
+            padding: 20px 24px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .job-list {
+            list-style: none;
+            margin: 0 0 20px 0;
+            padding: 0;
+        }
+
+        .job-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #262626;
+            margin-bottom: 10px;
+            padding: 10px 14px;
+            border-radius: 60px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: 0.1s;
+        }
+
+        .job-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .job-info input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #2b4f8c;
+        }
+
+        .job-text {
+            font-size: 0.9rem;
+            word-break: break-word;
+            flex: 1;
+            color: #ffffff;
+        }
+
+        .job-text.completed {
+            text-decoration: line-through;
+            color: #8ea3bd;
+        }
+
+        .delete-job {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #555;
+            padding: 4px 8px;
+            border-radius: 30px;
+        }
+
+        .delete-job:hover {
+            color: #d9534f;
+            background: rgba(255, 0, 0, 0.1);
+        }
+
+        .add-job-area {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .add-job-area input {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 60px;
+            border: 1px solid #444;
+            background: #262626;
+            color: white;
+            font-size: 0.85rem;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .add-job-area input:focus {
+            border-color: #2b4f8c;
+            box-shadow: 0 0 0 2px rgba(43, 79, 140, 0.2);
+        }
+
+        .small-btn {
+            background: #2b4f8c;
+            color: white;
+            border: none;
+            padding: 0 18px;
+            border-radius: 60px;
+            font-weight: 500;
+        }
+
+        .tip-text {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 12px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="header-bar">
+        <div class="title-section">
+            <h1>📖 课程任务桌</h1>
+            <h2>课表展示 · 添加课上作业 · 完成打勾 ✔️</h2>
+        </div>
+        <div class="actions">
+            <label for="bgInput" class="bg-input-label">🖼️ 更换背景</label>
+            <input type="file" id="bgInput" accept="image/*">
+            <button id="resetDataBtn" class="btn-outline">⟳ 重置默认课表</button>
+            <button id="clearAllJobsBtn" class="btn-outline">🗑 清空所有作业</button>
+        </div>
+    </div>
+
+    <div class="timetable-wrapper">
+        <table class="timetable" id="timetableGrid">
+            <thead id="tableHeader"></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+    <div class="footer-note">
+        💡 提示：双击课程格子可编辑课程名称与地点（清空名称=删除课程并移除相关作业）<br>
+        📌 每个课程右侧“作业”按钮可查看/添加/完成该课作业，作业支持打勾标记完成和删除。<br>
+        💻 <b>像应用一样使用</b>：在浏览器地址栏右侧点击“安装”图标，或在菜单中选择“安装 课程任务桌”，即可将其添加到桌面作为独立应用运行。
+    </div>
+</div>
+
+<!-- 作业模态框结构 -->
+<div id="jobModal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 id="modalCourseTitle">课程作业</h3>
+            <button class="close-modal" id="closeModalBtn">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- 动态作业列表 -->
+            <ul id="jobListContainer" class="job-list"></ul>
+            <div class="add-job-area">
+                <input type="text" id="newJobInput" placeholder="新作业内容，例如: 完成练习册P45" />
+                <button id="addJobBtn" class="small-btn">+ 添加</button>
+            </div>
+            <div class="tip-text">✅ 勾选表示完成，支持删除作业</div>
+        </div>
+    </div>
+</div>
+
+<!-- 课程编辑模态框 -->
+<div id="courseModal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3>编辑课程信息</h3>
+            <button class="close-modal" id="closeCourseModalBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; color: #aaa;">课程名称</label>
+                <input type="text" id="editCourseName" style="width: 100%; padding: 10px 14px; border-radius: 12px; border: 1px solid #444; background: #262626; color: white; outline: none;" placeholder="例如: 高等数学" />
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; color: #aaa;">上课地点</label>
+                <input type="text" id="editCourseLocation" style="width: 100%; padding: 10px 14px; border-radius: 12px; border: 1px solid #444; background: #262626; color: white; outline: none;" placeholder="例如: 教A101" />
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="deleteCourseBtn" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">删除课程</button>
+                <button id="saveCourseBtn" class="btn-primary">保存修改</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 注册 Service Worker (用于 PWA 安装和离线支持)
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('SW 注册成功:', reg.scope))
+                .catch(err => console.log('SW 注册失败:', err));
+        });
+    }
+
+    // ---------- 常量与数据管理 ----------
+    const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五'];
+    const PERIODS = ['第1节', '第2节', '第3节', '第4节', '第5节', '第6节', '第7节', '第8节'];
+    const STORAGE_KEY_DATA = 'timetable_app_data';
+    const STORAGE_KEY_JOBS = 'timetable_app_jobs';
+    const STORAGE_KEY_BG = 'timetable_app_bg';
+
+    let timetableData = [];
+    let jobsDatabase = {};
+
+    // 默认示例数据
+    const DEFAULT_COURSES = [
+        { d: 0, p: 0, name: '高等数学', location: '教C202' },
+        { d: 0, p: 1, name: '大学英语', location: '外语楼104' },
+        { d: 0, p: 2, name: '数据结构', location: '计B308' },
+        { d: 1, p: 0, name: '线性代数', location: '教A101' },
+        { d: 1, p: 2, name: '计算机组成原理', location: '计B401' },
+        { d: 1, p: 4, name: '体育', location: '体育馆' },
+        { d: 2, p: 1, name: '操作系统', location: '计B205' },
+        { d: 2, p: 3, name: '大学物理', location: '理学院205' },
+        { d: 3, p: 0, name: '概率论', location: '教A303' },
+        { d: 3, p: 2, name: 'Web开发', location: '计B105' },
+        { d: 4, p: 1, name: '软件工程', location: '计B309' },
+        { d: 4, p: 4, name: '学术英语', location: '外语楼210' }
+    ];
+
+    const DEFAULT_JOBS = [
+        { d: 0, p: 0, text: '完成习题册1-3页', completed: false },
+        { d: 0, p: 0, text: '预习第三章微分', completed: true },
+        { d: 0, p: 2, text: '实现二叉树前序遍历代码', completed: false },
+        { d: 0, p: 2, text: '阅读教材第五章', completed: true },
+        { d: 2, p: 1, text: '进程调度算法模拟', completed: false },
+        { d: 3, p: 2, text: '完成TodoList小项目', completed: false }
+    ];
+
+    // ---------- 核心逻辑 ----------
+
+    const getCourseKey = (dayIdx, periodIdx) => `${dayIdx}_${periodIdx}`;
+
+    function saveAllData() {
+        localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(timetableData));
+        localStorage.setItem(STORAGE_KEY_JOBS, JSON.stringify(jobsDatabase));
+    }
+
+    function initData(isReset = false) {
+        const storedTimetable = localStorage.getItem(STORAGE_KEY_DATA);
+        const storedJobs = localStorage.getItem(STORAGE_KEY_JOBS);
+
+        if (!isReset && storedTimetable && storedJobs) {
+            timetableData = JSON.parse(storedTimetable);
+            jobsDatabase = JSON.parse(storedJobs);
+            
+            // 自动适配节次变化
+            timetableData.forEach(day => {
+                while (day.length < PERIODS.length) {
+                    day.push({ name: '', location: '' });
+                }
+            });
+        } else {
+            timetableData = Array.from({ length: WEEKDAYS.length }, () => 
+                Array.from({ length: PERIODS.length }, () => ({ name: '', location: '' }))
+            );
+            jobsDatabase = {};
+
+            DEFAULT_COURSES.forEach(c => {
+                if (timetableData[c.d] && timetableData[c.d][c.p]) {
+                    timetableData[c.d][c.p] = { name: c.name, location: c.location };
+                }
+            });
+
+            DEFAULT_JOBS.forEach((j, idx) => {
+                const key = getCourseKey(j.d, j.p);
+                if (!jobsDatabase[key]) jobsDatabase[key] = [];
+                jobsDatabase[key].push({
+                    id: Date.now() + idx + Math.random(),
+                    text: j.text,
+                    completed: j.completed
+                });
+            });
+        }
+        cleanJobs();
+        saveAllData();
+        renderTimetable();
+    }
+
+    function cleanJobs() {
+        const validKeys = new Set();
+        timetableData.forEach((day, dIdx) => {
+            day.forEach((course, pIdx) => {
+                if (course?.name?.trim()) {
+                    validKeys.add(getCourseKey(dIdx, pIdx));
+                }
+            });
+        });
+
+        Object.keys(jobsDatabase).forEach(key => {
+            if (!validKeys.has(key)) delete jobsDatabase[key];
+        });
+    }
+
+    // ---------- UI 渲染 ----------
+
+    function renderTimetable() {
+        const thead = document.getElementById('tableHeader');
+        const tbody = document.getElementById('tableBody');
+        
+        thead.innerHTML = `<tr><th class="period-col">节次 / 星期</th>${WEEKDAYS.map(day => `<th>${day}</th>`).join('')}</tr>`;
+
+        let bodyHtml = '';
+        for (let p = 0; p < PERIODS.length; p++) {
+            bodyHtml += `<tr><td class="period-col"><strong>${PERIODS[p]}</strong></td>`;
+            for (let d = 0; d < WEEKDAYS.length; d++) {
+                const course = timetableData[d][p] || { name: '', location: '' };
+                const courseKey = getCourseKey(d, p);
+                const jobs = jobsDatabase[courseKey] || [];
+                const completedCount = jobs.filter(j => j.completed).length;
+                
+                const content = course.name.trim() ? `
+                    <div class="course-name"><span>📘 ${escapeHtml(course.name)}</span></div>
+                    ${course.location ? `<div class="course-location">📍 ${escapeHtml(course.location)}</div>` : ''}
+                    <div class="job-badge">
+                        <button class="job-btn" data-day="${d}" data-period="${p}">
+                            📋 作业 ${jobs.length > 0 ? `<span class="job-count">${completedCount}/${jobs.length}</span>` : '➕'}
+                        </button>
+                    </div>
+                ` : `<div class="empty-course">✏️ 双击添加课程</div>`;
+
+                bodyHtml += `<td class="course-cell" data-day="${d}" data-period="${p}" style="cursor: pointer;">${content}</td>`;
+            }
+            bodyHtml += `</tr>`;
+        }
+        tbody.innerHTML = bodyHtml;
+    }
+
+    // ---------- 交互管理 ----------
+
+    let currentDay = null, currentPeriod = null;
+    const elements = {
+        jobModal: document.getElementById('jobModal'),
+        courseModal: document.getElementById('courseModal'),
+        jobList: document.getElementById('jobListContainer'),
+        newJobInput: document.getElementById('newJobInput'),
+        editCourseName: document.getElementById('editCourseName'),
+        editCourseLocation: document.getElementById('editCourseLocation')
+    };
+
+    function toggleModal(modal, show = true) {
+        modal.classList[show ? 'add' : 'remove']('active');
+        if (!show) {
+            currentDay = null;
+            currentPeriod = null;
+        }
+    }
+
+    document.getElementById('timetableGrid').addEventListener('click', e => {
+        const jobBtn = e.target.closest('.job-btn');
+        if (jobBtn) {
+            e.stopPropagation();
+            currentDay = parseInt(jobBtn.dataset.day);
+            currentPeriod = parseInt(jobBtn.dataset.period);
+            openJobModal();
+        }
+    });
+
+    document.getElementById('timetableGrid').addEventListener('dblclick', e => {
+        const cell = e.target.closest('.course-cell');
+        if (cell) {
+            currentDay = parseInt(cell.dataset.day);
+            currentPeriod = parseInt(cell.dataset.period);
+            openCourseModal();
+        }
+    });
+
+    function openCourseModal() {
+        const course = timetableData[currentDay][currentPeriod];
+        elements.editCourseName.value = course.name;
+        elements.editCourseLocation.value = course.location;
+        toggleModal(elements.courseModal, true);
+    }
+
+    document.getElementById('saveCourseBtn').onclick = () => {
+        const name = elements.editCourseName.value.trim();
+        const location = elements.editCourseLocation.value.trim();
+        if (!name) return alert('课程名称不能为空');
+        
+        timetableData[currentDay][currentPeriod] = { name, location };
+        saveAndRefresh();
+        toggleModal(elements.courseModal, false);
+    };
+
+    document.getElementById('deleteCourseBtn').onclick = () => {
+        if (confirm('确定删除该课程及其所有作业吗？')) {
+            timetableData[currentDay][currentPeriod] = { name: '', location: '' };
+            saveAndRefresh();
+            toggleModal(elements.courseModal, false);
+        }
+    };
+
+    function openJobModal() {
+        const course = timetableData[currentDay][currentPeriod];
+        document.getElementById('modalCourseTitle').textContent = `📌 ${course.name} 的作业`;
+        refreshJobList();
+        toggleModal(elements.jobModal, true);
+    }
+
+    function refreshJobList() {
+        const key = getCourseKey(currentDay, currentPeriod);
+        const jobs = jobsDatabase[key] || [];
+        
+        elements.jobList.innerHTML = jobs.length ? jobs.map(job => `
+            <li class="job-item">
+                <div class="job-info">
+                    <input type="checkbox" ${job.completed ? 'checked' : ''} onchange="toggleJob('${job.id}')">
+                    <span class="job-text ${job.completed ? 'completed' : ''}">${escapeHtml(job.text)}</span>
+                </div>
+                <button class="delete-job" onclick="deleteJob('${job.id}')">🗑️</button>
+            </li>
+        `).join('') : '<div style="text-align:center;padding:20px;color:#90a4bc;">✨ 暂无作业</div>';
+    }
+
+    window.toggleJob = (id) => {
+        if (currentDay === null || currentPeriod === null) return;
+        const jobs = jobsDatabase[getCourseKey(currentDay, currentPeriod)];
+        const job = jobs.find(j => j.id == id);
+        if (job) {
+            job.completed = !job.completed;
+            saveAndRefresh();
+            refreshJobList();
+        }
+    };
+
+    window.deleteJob = (id) => {
+        if (currentDay === null || currentPeriod === null) return;
+        const key = getCourseKey(currentDay, currentPeriod);
+        jobsDatabase[key] = jobsDatabase[key].filter(j => j.id != id);
+        if (!jobsDatabase[key].length) delete jobsDatabase[key];
+        saveAndRefresh();
+        refreshJobList();
+    };
+
+    function saveAndRefresh() {
+        cleanJobs();
+        saveAllData();
+        renderTimetable();
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function init() {
+        initData();
+        loadBackground();
+
+        document.getElementById('closeModalBtn').onclick = () => toggleModal(elements.jobModal, false);
+        document.getElementById('closeCourseModalBtn').onclick = () => toggleModal(elements.courseModal, false);
+        document.getElementById('resetDataBtn').onclick = () => confirm('重置将丢失所有自定义内容，确定吗？') && initData(true);
+        document.getElementById('clearAllJobsBtn').onclick = () => confirm('确定清空所有作业吗？') && (jobsDatabase = {}, saveAndRefresh());
+        
+        document.getElementById('bgInput').onchange = function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const bgUrl = event.target.result;
+                    document.body.style.backgroundImage = `url(${bgUrl})`;
+                    localStorage.setItem(STORAGE_KEY_BG, bgUrl);
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        function loadBackground() {
+            const savedBg = localStorage.getItem(STORAGE_KEY_BG);
+            if (savedBg) {
+                document.body.style.backgroundImage = `url(${savedBg})`;
+            }
+        }
+
+        document.getElementById('addJobBtn').onclick = () => {
+            const text = elements.newJobInput.value.trim();
+            if (!text || currentDay === null || currentPeriod === null) return;
+            const key = getCourseKey(currentDay, currentPeriod);
+            if (!jobsDatabase[key]) jobsDatabase[key] = [];
+            const newId = Date.now() + Math.random();
+            jobsDatabase[key].push({ id: newId, text, completed: false });
+            elements.newJobInput.value = '';
+            saveAndRefresh();
+            refreshJobList();
+        };
+
+        window.onclick = (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                toggleModal(elements.jobModal, false);
+                toggleModal(elements.courseModal, false);
+            }
+        };
+
+        elements.newJobInput.onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('addJobBtn').click();
+            }
+        };
+    }
+
+    init();
+</script>
+</body>
+</html>
